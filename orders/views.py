@@ -14,6 +14,7 @@ from payments.utils import initiate_payment
 import logging
 
 logger = logging.getLogger(__name__)
+from payments.models import Payment
 
 
 def checkout(request):
@@ -194,7 +195,22 @@ def checkout(request):
                 if payment_url:
                     return redirect(payment_url)
                 else:
-                    messages.error(request, 'Payment initialization failed. Please try again.')
+                    # Try to surface gateway failure reason from Payment.gateway_response
+                    error_detail = None
+                    try:
+                        payment = Payment.objects.filter(order=order, payment_method=payment_method).order_by('-created_at').first()
+                        if payment and payment.gateway_response:
+                            gr = payment.gateway_response
+                            if isinstance(gr, dict):
+                                error_detail = gr.get('failedreason') or gr.get('failed_reason')
+                    except Exception:
+                        logger.exception('Error while fetching payment gateway response for order')
+
+                    if error_detail:
+                        messages.error(request, f'Payment initialization failed: {error_detail}')
+                    else:
+                        messages.error(request, 'Payment initialization failed. Please try again.')
+
                     return redirect('orders:order_detail', order_number=order.order_number)
     else:
         form = CheckoutForm(user=request.user)

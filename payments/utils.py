@@ -211,6 +211,14 @@ def initiate_sslcommerz_payment(order):
             logger.info(f"SSLCommerz payment URL generated: {gateway_url}")
             return gateway_url
         else:
+            # Save response into payment record for debugging/inspection
+            try:
+                payment = Payment.objects.get(transaction_id=transaction_id)
+                payment.gateway_response = session_data
+                payment.save()
+            except Exception:
+                logger.exception('Failed to save failed SSLCommerz session response to Payment record')
+
             error_msg = session_data.get('failedreason', 'Unknown error')
             logger.error(f"SSLCommerz session creation failed: {error_msg}")
             print(f"SSLCommerz session creation failed: {session_data}")

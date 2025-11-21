@@ -3,6 +3,7 @@ SSLCommerz Payment Gateway Integration
 """
 import requests
 import hashlib
+import logging
 from decimal import Decimal
 from django.conf import settings
 from django.urls import reverse
@@ -157,12 +158,19 @@ class SSLCommerzPayment:
         
         try:
             # Make API request to SSLCommerz
+            logger = logging.getLogger(__name__)
+            logger.info('Calling SSLCommerz API endpoint: %s', f'{self.base_url}/gwprocess/v4/api.php')
+            logger.debug('SSLCommerz post_data: %s', post_data)
+
             response = requests.post(
                 f'{self.base_url}/gwprocess/v4/api.php',
                 data=post_data,
                 timeout=30
             )
-            
+
+            logger.info('SSLCommerz response status: %s', response.status_code)
+            logger.debug('SSLCommerz response text: %s', response.text)
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -171,6 +179,7 @@ class SSLCommerzPayment:
                     'failedreason': f'HTTP {response.status_code}: {response.text}'
                 }
         except requests.exceptions.RequestException as e:
+            logger.exception('SSLCommerz request exception')
             return {
                 'status': 'FAILED',
                 'failedreason': f'Connection error: {str(e)}'
